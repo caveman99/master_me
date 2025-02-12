@@ -47,7 +47,7 @@ struct InputMeterGroup : QuantumFrame
 
     QuantumStereoLevelMeterWithLUFS meter;
     QuantumMixerSlider slider;
-    QuantumGainReductionMeter levelerGain;
+    QuantumGainReductionMeterWithValue levelerGain;
 
     explicit InputMeterGroup(NanoTopLevelWidget* const parent, KnobEventHandler::Callback* const cb, const QuantumTheme& t)
         : QuantumFrame(parent, t),
@@ -61,7 +61,8 @@ struct InputMeterGroup : QuantumFrame
         meter.setName(" + Meter");
         meter.setRange(kParameterRanges[kParameter_peakmeter_in_l].min, kParameterRanges[kParameter_peakmeter_in_l].max);
         meter.setValues(kParameterRanges[kParameter_peakmeter_in_l].min,
-                        kParameterRanges[kParameter_peakmeter_in_r].min, 
+                        kParameterRanges[kParameter_peakmeter_in_r].min,
+                        0.f,
                         kParameterRanges[kParameter_lufs_in].min);
 
         slider.setCallback(cb);
@@ -115,7 +116,8 @@ struct OutputMeterGroup : QuantumFrame
         meter.setName(" + Meter");
         meter.setRange(kParameterRanges[kParameter_peakmeter_out_l].min, kParameterRanges[kParameter_peakmeter_out_l].max);
         meter.setValues(kParameterRanges[kParameter_peakmeter_out_l].min,
-                        kParameterRanges[kParameter_peakmeter_out_r].min, 
+                        kParameterRanges[kParameter_peakmeter_out_r].min,
+                        0.f,
                         kParameterRanges[kParameter_lufs_out].min);
     }
 
@@ -156,7 +158,7 @@ struct TopCenteredGroup : NanoSubWidget
        #ifndef __MOD_DEVICES__
         globalEnableSwitch.setCallback(bcb);
         globalEnableSwitch.setCheckable(true);
-        globalEnableSwitch.setChecked(kParameterRanges[kParameter_global_bypass].def, false);
+        globalEnableSwitch.setChecked(!kParameterRanges[kParameter_global_bypass].def, false);
         globalEnableSwitch.setId(kParameter_global_bypass);
         globalEnableSwitch.setLabel("Enable");
         globalEnableSwitch.setName("Global Enable Button");
@@ -1161,7 +1163,7 @@ public:
           outputGroup(this, theme),
           welcomeLabel(this, theme),
           name(this, this, theme),
-          histogram(this),
+          histogram(this, theme),
           preProcessing(this, this, this, theme),
           gate(this, this, this, theme),
           eq(this, this, this, theme),
@@ -1938,7 +1940,7 @@ protected:
         presetButtons.updateCurrentValue(widget->getId(), value);
         setParameterValue(widget->getId(), value);
     }
-    
+
     void knobDoubleClicked(SubWidget* const widget) override
     {
         doubleClickHelper = nullptr;
@@ -1965,26 +1967,31 @@ protected:
             area = slider->getAbsoluteArea();
         }
 
-        doubleClickHelper = new DoubleClickHelper(this, this, widget, area, theme);
-
-        String s;
+        char text[32] = {};
         if (isInteger)
-            s = String(static_cast<int>(value));
+            std::snprintf(text, 31, "%d", static_cast<int>(value));
         else
-            s = String(std::round(value * 10.f)/10.f);
+            std::snprintf(text, 31, "%.1f", std::round(value * 10.f)/10.f);
 
-        doubleClickHelper->setText(s.buffer());
+        doubleClickHelper = new DoubleClickHelper(this, this, widget, text, area, theme);
     }
 
     static inline float safeNumberFromText(const uint id, const bool isInteger, const char* const text) noexcept
     {
         float value;
 
+        if (isInteger)
+        {
+            try {
+                value = static_cast<float>(std::atoi(text));
+            } DISTRHO_SAFE_EXCEPTION_RETURN("safeNumberFromText", kParameterRanges[id].def);
+        }
+        else
         {
             const ScopedSafeLocale ssl;
 
             try {
-                value = static_cast<float>(isInteger ? std::atoi(text) : std::atof(text));
+                value = static_cast<float>(std::atof(text));
             } DISTRHO_SAFE_EXCEPTION_RETURN("safeNumberFromText", kParameterRanges[id].def);
         }
 
@@ -2018,14 +2025,14 @@ protected:
         if (colors)
         {
             recursiveTypeFind<QuantumButton>(getChildren(), [=](QuantumButton* const w){
-                w->setBackgroundColor(theme.widgetDefaultActiveColor);
+                w->setBackgroundColor(theme.widgetActiveColor);
             });
             recursiveTypeFind<QuantumValueSlider>(getChildren(), [=](QuantumValueSlider* const w){
-                w->setBackgroundColor(theme.widgetDefaultActiveColor);
+                w->setBackgroundColor(theme.widgetActiveColor);
                 w->setTextColor(theme.textLightColor);
             });
             recursiveTypeFind<QuantumValueMeter>(getChildren(), [=](QuantumValueMeter* const w){
-                w->setBackgroundColor(theme.widgetDefaultAlternativeColor);
+                w->setBackgroundColor(theme.widgetAlternativeColor);
                 w->setTextColor(theme.textLightColor);
             });
             recursiveTypeFind<QuantumLevelMeter>(getChildren(), [=](QuantumLevelMeter* const w){
