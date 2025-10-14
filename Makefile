@@ -30,16 +30,6 @@ FAUSTPP_TARGET = build/faustpp/faustpp$(APP_EXT)
 FAUSTPP_EXEC = $(CURDIR)/$(FAUSTPP_TARGET)
 endif
 
-faustpp:
-
-# never rebuild faustpp
-ifneq ($(FAUSTPP_TARGET),)
-ifeq ($(wildcard $(FAUSTPP_TARGET)),)
-faustpp: $(FAUSTPP_TARGET)
-.PHONY: faustpp
-endif
-endif
-
 # ---------------------------------------------------------------------------------------------------------------------
 # bench target, for testing
 
@@ -165,7 +155,7 @@ FAUSTPP_ARGS = \
 # -X-fm -Xfastmath.cpp
 FAUSTPP_OPTS = -X-vec -X-lv -X1 -X-vs -X8
 
-pregen:
+pregen: $(FAUSTPP_TARGET)
 	mkdir -p build/master_me
 	$(FAUSTPP_EXEC) $(FAUSTPP_ARGS) $(FAUSTPP_OPTS) -a template/DistrhoPluginInfo.h master_me.dsp -o pregen/DistrhoPluginInfo.h
 	$(FAUSTPP_EXEC) $(FAUSTPP_ARGS) $(FAUSTPP_OPTS) -a template/Plugin.cpp          master_me.dsp -o pregen/Plugin.cpp
@@ -260,8 +250,9 @@ TAR_ARGS = \
 	--transform='s,^-\.-\.,..,' \
 
 tarball:
-	rm -f ../master_me-$(VERSION).tar.xz
-	tar -c --lzma $(TAR_ARGS) -f ../master_me-$(VERSION).tar.xz .
+	rm -f ../master_me-$(VERSION)-src.tar.xz
+	tar -c --lzma $(TAR_ARGS) -f ../master_me-$(VERSION)-src.tar.xz .
+	mv ../master_me-$(VERSION)-src.tar.xz .
 
 # ---------------------------------------------------------------------------------------------------------------------
 # rules for custom faustpp build
